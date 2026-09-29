@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  NWE — page-pont OAuth.
+  À héberger telle quelle sur une URL https fixe (GitHub Pages, Cloudflare Pages, Vercel…), puis
+  déclarer cette URL comme redirect URI chez Oura et WHOOP et dans EXPO_PUBLIC_OAUTH_BRIDGE.
+  Le fournisseur redirige ici avec ?code=…&state=… ; `state` (base64url) contient l'URL de retour
+  réelle de l'app (exp://… en Expo Go, nwe://… en build) : on y renvoie code + state tels quels.
+  Aucun secret, aucun stockage, aucun appel réseau.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>NWE · retour vers l’app</title>
+<style>
+  html,body{height:100%;margin:0;background:#0A0A0B;color:#fff;font:15px -apple-system,system-ui,sans-serif}
+  main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+  .mark{font-weight:800;letter-spacing:.08em;font-size:13px;color:#CFFF00}
+  a.btn{display:inline-block;margin-top:8px;padding:14px 22px;border-radius:18px;background:#CFFF00;color:#000;font-weight:700;text-decoration:none}
+  p{max-width:420px;opacity:.7;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">NO WASTED ENERGY</div>
+  <div id="msg">Retour vers l’app…</div>
+  <p id="hint" hidden></p>
+  <a id="btn" class="btn" href="#" hidden>Ouvrir l’app</a>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var msg = document.getElementById('msg'), hint = document.getElementById('hint'), btn = document.getElementById('btn');
+  function fail(t) { msg.textContent = 'Impossible de revenir dans l’app.'; hint.textContent = t; hint.hidden = false; }
+  var state = q.get('state');
+  if (!state) return fail('Paramètre state absent.');
+  var json;
+  try {
+    var b64 = state.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    json = JSON.parse(atob(b64));
+  } catch (e) { return fail('state illisible.'); }
+  var ret = json && json.r;
+  if (!ret || !/^(exp|exps|nwe):\/\//.test(ret)) return fail('URL de retour non autorisée.');
+  // On transmet tout ce que le fournisseur a renvoyé (code, state, error, error_description…).
+  var sep = ret.indexOf('?') === -1 ? '?' : '&';
+  var target = ret + sep + q.toString();
+  btn.href = target; btn.hidden = false;
+  location.replace(target);
+  setTimeout(function () { msg.textContent = 'Si rien ne se passe, touche le bouton.'; }, 1500);
+})();
+</script>
+</body>
+</html>
